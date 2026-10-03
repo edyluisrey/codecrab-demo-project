@@ -9,6 +9,15 @@ venv/
 .venv/
 env/
 
+# Test artifacts
+.coverage
+htmlcov/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Databases
 *.db
 *.sqlite
