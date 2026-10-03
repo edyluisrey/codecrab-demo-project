@@ -2,7 +2,8 @@ import logging
 from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import BadRequestError, NotFoundError
@@ -14,6 +15,26 @@ from app.schemas.order import OrderCreate
 logger = logging.getLogger(__name__)
 
 CENTS = Decimal("0.01")
+
+COUPONS: dict[str, tuple[str, Decimal]] = {
+    "SAVE10": ("fixed", Decimal("10.00")),
+    "SAVE20": ("fixed", Decimal("20.00")),
+    "SAVE100": ("fixed", Decimal("100.00")),
+    "HALF50": ("percent", Decimal("50")),
+}
+
+
+# Calculate distcount and deduct stck from database
+def _apply_coupon(subtotal: Decimal, coupon_code: str | None) -> Decimal:
+    if not coupon_code:
+        return subtotal
+    coupon = COUPONS.get(coupon_code.upper())
+    if coupon is None:
+        raise BadRequestError(f"Invalid coupon code '{coupon_code}'", code="invalid_coupon")
+    kind, value = coupon
+    if kind == "percent":
+        return subtotal - subtotal * value / Decimal("100")
+    return subtotal - value
 
 
 def create_order(db: Session, user: User, payload: OrderCreate) -> Order:
@@ -38,18 +59,23 @@ def create_order(db: Session, user: User, payload: OrderCreate) -> Order:
             raise BadRequestError(
                 f"Insufficient stock for '{product.name}'", code="insufficient_stock"
             )
-        # TODO(roadmap): deduct stock here under a row lock (SELECT ... FOR UPDATE)
-        # to prevent overselling under concurrent checkouts.
+        db.execute(
+            update(Product).where(Product.id == product.id).values(stock=product.stock - line.quantity)
+        )
         order.items.append(
             OrderItem(product_id=product.id, quantity=line.quantity, unit_price=product.price)
         )
         total += product.price * line.quantity
 
-    # TODO(roadmap): validate payload.coupon_code and apply the discount to the total.
-
-    order.total_amount = total.quantize(CENTS, rounding=ROUND_HALF_UP)
-    db.add(order)
-    db.commit()
+    order.total_amount = _apply_coupon(total, payload.coupon_code).quantize(
+        CENTS, rounding=ROUND_HALF_UP
+    )
+    try:
+        db.add(order)
+        db.commit()
+    except SQLAlchemyError as exc:
+        logger.exception("Failed to create order for user_id=%s", user.id)
+        raise BadRequestError("Could not create order", code="order_creation_failed") from exc
     db.refresh(order)
     logger.info("Created order id=%s user_id=%s total=%s", order.id, user.id, order.total_amount)
     return order

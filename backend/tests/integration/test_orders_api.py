@@ -61,7 +61,7 @@ def test_create_order_ignores_client_supplied_prices(
     assert response.json()["total_amount"] == 50.0
 
 
-def test_create_order_accepts_coupon_code_without_applying_it(
+def test_create_order_with_unknown_coupon_returns_400(
     client: TestClient,
     make_user: UserFactory,
     make_product: ProductFactory,
@@ -75,8 +75,8 @@ def test_create_order_accepts_coupon_code_without_applying_it(
         json={"items": [{"product_id": product.id, "quantity": 1}], "coupon_code": "SAVE50"},
     )
 
-    assert response.status_code == 201
-    assert response.json()["total_amount"] == 20.0
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_coupon"
 
 
 @pytest.mark.parametrize(

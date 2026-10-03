@@ -11,7 +11,12 @@ from app.services import order_service
 router = APIRouter(prefix="/orders", tags=["orders"])
 
 
-@router.post("", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=OrderRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create an order, applying an optional coupon and reserving stock",
+)
 def create_order(payload: OrderCreate, db: DbSession, current_user: CurrentUser) -> Order:
     return order_service.create_order(db, current_user, payload)
 
