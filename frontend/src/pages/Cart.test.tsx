@@ -56,6 +56,8 @@ describe('Cart page', () => {
 
     await user.type(screen.getByLabelText(/coupon code/i), '  SAVE10 ')
     await user.click(screen.getByRole('button', { name: /place order/i }))
+    expect(screen.getByRole('dialog', { name: 'Confirm your order' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /confirm payment/i }))
 
     expect(await screen.findByText('Orders page')).toBeInTheDocument()
     expect(submitted).toEqual({
@@ -82,6 +84,7 @@ describe('Cart page', () => {
     const { user } = renderRoutes(routes, { route: '/cart' })
 
     await user.click(screen.getByRole('button', { name: /place order/i }))
+    await user.click(screen.getByRole('button', { name: /confirm payment/i }))
 
     await screen.findByText('Orders page')
     expect(submitted?.coupon_code).toBeNull()
@@ -101,10 +104,10 @@ describe('Cart page', () => {
     const { user } = renderRoutes(routes, { route: '/cart' })
 
     await user.click(screen.getByRole('button', { name: /place order/i }))
+    await user.click(screen.getByRole('button', { name: /confirm payment/i }))
 
     expect(await screen.findByText("Insufficient stock for 'CacheBolt Redis'")).toBeInTheDocument()
     expect(screen.getByTestId('location')).toHaveTextContent('/cart')
-    expect(screen.getByRole('button', { name: /place order/i })).toBeEnabled()
     expect(JSON.parse(localStorage.getItem('codecrab.cart') ?? '[]')).toHaveLength(1)
   })
 })

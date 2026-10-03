@@ -25,6 +25,7 @@ test.describe('Checkout', () => {
     await expect(page.getByText('$210.00')).toBeVisible()
 
     await page.getByRole('button', { name: 'Place order' }).click()
+    await page.getByRole('button', { name: 'Confirm payment' }).click()
 
     await expect(page).toHaveURL(/\/orders$/)
     await expect(page.getByText(/Order #\d+ placed successfully/)).toBeVisible()
@@ -42,6 +43,7 @@ test.describe('Checkout', () => {
     await page.getByRole('button', { name: 'Add to cart' }).click()
     await page.goto('/cart')
     await page.getByRole('button', { name: 'Place order' }).click()
+    await page.getByRole('button', { name: 'Confirm payment' }).click()
     await expect(page).toHaveURL(/\/orders$/)
     await page.getByRole('button', { name: /sign out/i }).click()
 

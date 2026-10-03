@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ordersApi } from '../api/orders'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { CheckoutModal } from '../components/CheckoutModal'
 import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
 import { formatCurrency } from '../utils/format'
@@ -14,24 +15,27 @@ export default function Cart() {
   const { notify } = useToast()
   const navigate = useNavigate()
   const [couponCode, setCouponCode] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleCheckout = async (e: FormEvent) => {
+  const openCheckout = (e: FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
+    setIsModalOpen(true)
+  }
+
+  const handleCheckout = async (orderData: any) => {
+    const cartItems = items
+    console.log('Cart state before checkout:', cartItems)
+    setLoading(true)
     try {
-      const order = await ordersApi.create({
-        items: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
-        // TODO(roadmap): coupon codes are sent but not yet validated by the backend.
-        coupon_code: couponCode.trim() || null,
-      })
+      const order = await ordersApi.create(orderData)
+      setLoading(false)
+      setIsModalOpen(false)
       clear()
       notify(`Order #${order.id} placed successfully`, 'success')
       navigate('/orders')
     } catch {
       // Errors are surfaced by the global API error toast.
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -100,7 +104,7 @@ export default function Cart() {
 
       <aside>
         <Card className="sticky top-24">
-          <form onSubmit={handleCheckout} className="space-y-4">
+          <form onSubmit={openCheckout} className="space-y-4">
             <h2 className="text-lg font-semibold">Order summary</h2>
             <label className="block space-y-1">
               <span className="text-sm text-slate-600">Coupon code</span>
@@ -116,12 +120,26 @@ export default function Cart() {
               <span>Total</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <Button type="submit" size="lg" fullWidth isLoading={isSubmitting}>
+            <Button type="submit" size="lg" fullWidth isLoading={loading}>
               Place order
             </Button>
           </form>
         </Card>
       </aside>
+
+      <CheckoutModal
+        isOpen={isModalOpen}
+        items={items}
+        total={subtotal}
+        isLoading={loading}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={() =>
+          handleCheckout({
+            items: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
+            coupon_code: couponCode.trim() || null,
+          })
+        }
+      />
     </div>
   )
 }

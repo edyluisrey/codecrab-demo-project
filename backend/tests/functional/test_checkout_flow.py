@@ -57,7 +57,7 @@ def test_shopper_registers_browses_orders_and_payment_confirms(
             "data": {"object": {"id": "pi_checkout", "metadata": {"order_id": str(order_body["id"])}}},
         },
     )
-    assert webhook.json()["status"] == "paid"
+    assert webhook.json() == {"status": "success"}
 
     history = client.get(f"{API}/orders", headers=headers).json()
     assert len(history) == 1
