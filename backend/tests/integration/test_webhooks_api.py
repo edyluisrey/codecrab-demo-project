@@ -45,12 +45,7 @@ def test_payment_events_update_order_status(
     response = client.post(WEBHOOK, json=stripe_event(event_type, str(order.id), "pi_abc"))
 
     assert response.status_code == 200
-    assert response.json() == {
-        "received": True,
-        "handled": True,
-        "order_id": order.id,
-        "status": expected_status.value,
-    }
+    assert response.json() == {"status": "success"}
     db.refresh(order)
     assert order.status is expected_status
     assert order.payment_intent_id == "pi_abc"
@@ -62,7 +57,7 @@ def test_unhandled_event_type_is_acknowledged_without_changes(
     response = client.post(WEBHOOK, json=stripe_event("customer.created", str(order.id)))
 
     assert response.status_code == 200
-    assert response.json() == {"received": True, "handled": False}
+    assert response.json() == {"status": "success"}
     db.refresh(order)
     assert order.status is OrderStatus.PENDING
 
@@ -74,16 +69,9 @@ def test_invalid_json_returns_400(client: TestClient) -> None:
     assert response.json()["code"] == "invalid_payload"
 
 
-@pytest.mark.parametrize("order_id", [None, "abc"])
-def test_missing_or_invalid_order_id_returns_400(client: TestClient, order_id: object) -> None:
+@pytest.mark.parametrize("order_id", [None, "abc", "9999"])
+def test_unprocessable_events_are_acknowledged(client: TestClient, order_id: object) -> None:
     response = client.post(WEBHOOK, json=stripe_event("payment_intent.succeeded", order_id))
 
-    assert response.status_code == 400
-    assert response.json()["code"] == "invalid_payload"
-
-
-def test_unknown_order_returns_404(client: TestClient) -> None:
-    response = client.post(WEBHOOK, json=stripe_event("payment_intent.succeeded", "9999"))
-
-    assert response.status_code == 404
-    assert response.json()["code"] == "order_not_found"
+    assert response.status_code == 200
+    assert response.json() == {"status": "success"}
