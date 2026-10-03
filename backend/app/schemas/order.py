@@ -13,7 +13,6 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1, max_length=50)
-    # TODO(roadmap): coupon validation is not implemented; the code is accepted but ignored.
     coupon_code: str | None = Field(default=None, max_length=32)
 
     @field_validator("items")

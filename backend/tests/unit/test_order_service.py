@@ -94,7 +94,6 @@ def test_create_order_allows_quantity_equal_to_stock(
     assert order.items[0].quantity == 2
 
 
-@pytest.mark.xfail(strict=True, reason="TODO(roadmap): stock deduction is not implemented yet")
 def test_create_order_deducts_stock(
     db: Session, make_user: UserFactory, make_product: ProductFactory
 ) -> None:
