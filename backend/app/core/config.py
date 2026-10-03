@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./codecrab_demo.db"
 
-    secret_key: str = Field(default="dev-insecure-secret-key-change-me", min_length=16)
+    secret_key: str = Field(default="super_secret_default_key_12345", min_length=16)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = Field(default=60, gt=0)
 
