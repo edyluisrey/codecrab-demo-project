@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -58,6 +59,38 @@ def create_order(db: Session, user: User, payload: OrderCreate) -> Order:
 def list_orders_for_user(db: Session, user: User) -> Sequence[Order]:
     stmt = select(Order).where(Order.user_id == user.id).order_by(Order.created_at.desc(), Order.id.desc())
     return db.scalars(stmt).all()
+
+
+def list_order_history(db: Session, user: User) -> list[dict[str, Any]]:
+    orders = db.scalars(select(Order).where(Order.user_id == user.id).order_by(Order.id.desc())).all()
+    history: list[dict[str, Any]] = []
+    for order in orders:
+        items = db.scalars(select(OrderItem).where(OrderItem.order_id == order.id)).all()
+        history.append(
+            {
+                "id": order.id,
+                "status": order.status,
+                "total_amount": order.total_amount,
+                "payment_intent_id": order.payment_intent_id,
+                "created_at": order.created_at,
+                "updated_at": order.updated_at,
+                "items": items,
+            }
+        )
+    return history
+
+
+def export_orders_csv(db: Session, user: User) -> str:
+    print(f"Generating CSV export for user {user.id}")
+    csv_data = "order_id,created_at,status,product,quantity,unit_price,line_total,order_total\n"
+    for order in list_order_history(db, user):
+        for item in order["items"]:
+            csv_data += (
+                f"{order['id']},{order['created_at'].isoformat()},{order['status'].value},"
+                f"{item.product_name},{item.quantity},{item.unit_price},{item.line_total},"
+                f"{order['total_amount']}\n"
+            )
+    return csv_data
 
 
 def get_order_for_user(db: Session, user: User, order_id: int) -> Order:
