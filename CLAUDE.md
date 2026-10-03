@@ -7,20 +7,33 @@ planned work for future PRs. See @README.md for overview and roadmap.
 ## Commands
 
 Backend (run from `backend/`, venv at `backend/.venv`):
-- Install: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cp .env.example .env`
+- Install: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt && cp .env.example .env`
 - Reset + seed DB (DESTROYS all data): `.venv/bin/python -m app.seed`
 - Run API: `.venv/bin/uvicorn app.main:app --reload` (port 8000, docs at `/docs`)
-- Import check: `.venv/bin/python -c "import app.main"`
+- Tests: `.venv/bin/pytest` (add `--cov=app` for coverage, `-m unit|integration|functional` to filter)
 
 Frontend (run from `frontend/`):
-- Install: `npm install`
+- Install: `npm install` (once for E2E: `npx playwright install chromium`)
 - Dev: `npm run dev` (port 5173, proxies `/api` to `localhost:8000`)
-- Typecheck + build: `npm run build` (MUST pass with zero errors before finishing)
+- Typecheck + build: `npm run build` (MUST pass with zero errors; also type-checks tests)
+- Unit/integration tests: `npm test` (`npm run test:coverage` for coverage)
+- E2E: `npm run test:e2e` (boots its own seeded API on 8001 and Vite on 5174)
 
 Demo login: `demo@codecrab.dev` / `codecrab123`
 
-There is no automated test suite or linter yet. Verify backend changes with the import
-check plus curl against the running API; verify frontend changes with `npm run build`.
+## Tests
+
+- Backend `tests/`: `unit/` (services, security, schemas; call services directly),
+  `integration/` (HTTP via `TestClient`), `functional/` (multi-step user journeys).
+  Fixtures in `tests/conftest.py`: in-memory SQLite per test, `client`, `make_user`,
+  `make_product`, `auth_headers`. Use them instead of hand-building rows or tokens.
+- DeprecationWarnings raised from `app.*` fail the suite (see `pytest.ini`).
+- Unimplemented roadmap behavior is pinned with `@pytest.mark.xfail(strict=True)`.
+  A PR that implements it must remove the marker (strict xfail fails once it passes).
+- Frontend: Vitest + Testing Library, colocated as `*.test.ts(x)`. Network is mocked
+  with MSW (`src/test/handlers.ts`); unhandled requests fail the test. Render pages
+  with `renderRoutes` from `src/test/render.tsx`; prefer role/label queries.
+- E2E specs in `frontend/e2e/` run serially against a real seeded backend.
 
 ## Backend architecture rules
 
@@ -78,7 +91,7 @@ does NOT alter existing tables. After changing a model, run `python -m app.seed`
 - No order cancellation or refunds.
 - Stripe webhook (`routers/webhooks.py`): no signature verification, no idempotency,
   and the endpoint is unauthenticated.
-- No pagination, tests, migrations, or rate limiting.
+- No pagination, migrations, or rate limiting.
 
 When reviewing a PR that implements one of these, check it closes the gap correctly
 (e.g. stock deduction must be atomic; the webhook must verify `Stripe-Signature` with
@@ -92,11 +105,13 @@ When reviewing a PR that implements one of these, check it closes the gap correc
   problem, and a concrete fix.
 - Flag: business logic in routers, FastAPI imports in services, raw `HTTPException`,
   `float` money math, unscoped queries on user data, secrets in code, frontend types
-  drifting from backend schemas, direct axios usage in components.
+  drifting from backend schemas, direct axios usage in components, behavior changes
+  without a matching test.
 - Do NOT flag existing `TODO(roadmap)` items as bugs unless the PR touches them.
 
 ## Workflow
 
 - Match surrounding code style; comments only for non-obvious constraints.
-- Before finishing: backend import check passes, and `npm run build` passes if frontend changed.
+- Before finishing: `pytest` passes if backend changed; `npm test` and `npm run build`
+  pass if frontend changed. Add or update tests alongside behavior changes.
 - Never commit `.env`, `*.db`, `.venv/`, `node_modules/` or `dist/`.

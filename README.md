@@ -51,7 +51,7 @@ global exception handler converts to a consistent JSON shape: `{"detail": "...",
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # or requirements.txt for runtime only
 cp .env.example .env            # then edit SECRET_KEY
 python -m app.seed              # creates codecrab_demo.db with sample data
 uvicorn app.main:app --reload   # http://localhost:8000  (docs at /docs)
@@ -73,6 +73,35 @@ npm run dev                     # http://localhost:5173
 
 The Vite dev server proxies `/api` to `http://localhost:8000`, so no extra configuration
 is required locally. Set `VITE_API_BASE_URL` to target a different backend.
+
+---
+
+## Testing
+
+| Layer | Tooling | Location | Command |
+| ----- | ------- | -------- | ------- |
+| Backend unit | pytest | `backend/tests/unit/` | `pytest -m unit` |
+| Backend integration (HTTP) | pytest + `TestClient` | `backend/tests/integration/` | `pytest -m integration` |
+| Backend functional (journeys) | pytest + `TestClient` | `backend/tests/functional/` | `pytest -m functional` |
+| Frontend unit + integration | Vitest, Testing Library, MSW | `frontend/src/**/*.test.ts(x)` | `npm test` |
+| End-to-end | Playwright (Chromium) | `frontend/e2e/` | `npm run test:e2e` |
+
+```bash
+# Backend (from backend/, venv active)
+pip install -r requirements-dev.txt
+pytest                          # all suites, in-memory SQLite
+pytest --cov=app                # with coverage report
+
+# Frontend (from frontend/)
+npm test                        # unit + integration, network mocked with MSW
+npm run test:coverage           # with coverage report
+npx playwright install chromium # once
+npm run test:e2e                # real API on :8001 (seeded e2e_test.db) + Vite on :5174
+```
+
+The E2E run starts and stops both servers itself, so the dev servers can stay running.
+Roadmap behavior that is not implemented yet (stock deduction) is pinned by a strict
+`xfail` test, which starts failing as soon as the feature lands so the marker gets removed.
 
 ---
 
@@ -104,6 +133,7 @@ is required locally. Set `VITE_API_BASE_URL` to target a different backend.
 - [x] Order history per user
 - [x] Stripe webhook endpoint updating order status (skeleton)
 - [x] React frontend: catalog, product detail, cart, checkout, order history, auth
+- [x] Automated tests: pytest (unit, integration, functional), Vitest + MSW, Playwright E2E
 
 ### Planned
 - [ ] Coupon code validation and discounts at checkout
@@ -112,5 +142,5 @@ is required locally. Set `VITE_API_BASE_URL` to target a different backend.
 - [ ] Stripe webhook signature verification (`STRIPE_WEBHOOK_SECRET`)
 - [ ] Webhook event idempotency (persist processed event IDs)
 - [ ] Database migrations with Alembic
-- [ ] Automated test suites (pytest, Vitest)
+- [ ] CI pipeline running the test suites on every PR
 - [ ] Pagination for product listing and order history

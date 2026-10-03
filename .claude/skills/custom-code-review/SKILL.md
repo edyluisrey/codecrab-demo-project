@@ -303,8 +303,13 @@ Report only concrete exploit or exposure paths introduced or worsened by the dif
 ### Do not flag
 
 - Existing `TODO(roadmap)` items (coupons, stock locking, cancellation/refunds, webhook signature
-  and idempotency, pagination, Alembic, test suites) unless the PR touches them.
-- Missing tests or missing Alembic migrations by themselves; neither exists yet.
+  and idempotency, pagination, Alembic) unless the PR touches them.
+- Missing Alembic migrations by themselves; Alembic is not set up yet.
+- Missing tests for pure refactors, docs, or styling-only changes. Do flag behavior changes
+  (new endpoint, service rule, page flow) that ship without a matching test as Required.
+- The strict `xfail` on `test_create_order_deducts_stock`; it documents the stock roadmap gap.
+  Do flag a PR that implements stock deduction but leaves the marker in place, or a PR that
+  deletes or weakens it without implementing the feature.
 - Validation FastAPI/Pydantic already enforces (`Field(gt=0)`, `EmailStr`, `Path(gt=0)`,
   `Query(max_length=...)`).
 - Parameterized `select()` queries; SQLAlchemy binds parameters.
@@ -392,10 +397,14 @@ Order findings: Critical, Required, Optional, Nit. Renumber from 1.
 - **Stack context** should mention FastAPI/SQLAlchemy 2.0/Pydantic v2 and/or React/TypeScript/
   Vite/Tailwind as relevant to the files touched.
 - **Verification Story** for this repo:
-  - Tests reviewed: there is no test suite yet; say so unless the PR adds tests.
-  - Tests you would run: `cd backend && .venv/bin/python -c "import app.main"` for backend changes;
-    `cd frontend && npm run build` for frontend changes; add curl against `/api/v1/...` for
-    changed endpoints.
+  - Tests reviewed: say whether the PR adds or updates tests in `backend/tests/{unit,integration,
+    functional}/`, `frontend/src/**/*.test.ts(x)` or `frontend/e2e/`, and whether they assert the
+    changed behavior (status codes, `{"detail","code"}` error shape, owner scoping, Decimal totals)
+    rather than just executing it. Check new MSW handlers in `frontend/src/test/handlers.ts` match
+    the real backend contract.
+  - Tests you would run: `cd backend && .venv/bin/pytest` for backend changes;
+    `cd frontend && npm test && npm run build` for frontend changes; `npm run test:e2e` when
+    routing, auth, cart or checkout flows change.
   - Build verified: `no` unless `gh pr checks` shows a passing build, or the local checkout's
     `git rev-parse HEAD` equals `headRefOid` and you ran the commands above without modifying
     anything.
