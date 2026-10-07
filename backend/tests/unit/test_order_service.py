@@ -13,7 +13,10 @@ pytestmark = pytest.mark.unit
 
 
 def order_payload(*lines: tuple[int, int]) -> OrderCreate:
-    return OrderCreate(items=[OrderItemCreate(product_id=pid, quantity=qty) for pid, qty in lines])
+    return OrderCreate(
+        items=[OrderItemCreate(product_id=pid, quantity=qty) for pid, qty in lines],
+        shipping_address="1 Crab Lane, Reef City",
+    )
 
 
 def test_create_order_computes_decimal_total_from_db_prices(
@@ -25,8 +28,8 @@ def test_create_order_computes_decimal_total_from_db_prices(
 
     order = order_service.create_order(db, user, order_payload((a.id, 3), (b.id, 3)))
 
-    assert order.total_amount == Decimal("60.27")
-    assert isinstance(order.total_amount, Decimal)
+    assert order.grand_total == Decimal("60.27")
+    assert isinstance(order.grand_total, Decimal)
     assert order.status is OrderStatus.PENDING
     assert order.user_id == user.id
     assert [(i.product_id, i.quantity) for i in order.items] == [(a.id, 3), (b.id, 3)]

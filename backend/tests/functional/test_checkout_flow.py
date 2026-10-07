@@ -42,12 +42,15 @@ def test_shopper_registers_browses_orders_and_payment_confirms(
     order = client.post(
         f"{API}/orders",
         headers=headers,
-        json={"items": [{"product_id": vault["id"], "quantity": 2}]},
+        json={
+            "items": [{"product_id": vault["id"], "quantity": 2}],
+            "shipping_address": "1 Crab Lane, Reef City",
+        },
     )
     assert order.status_code == 201
     order_body = order.json()
     assert order_body["status"] == "pending"
-    assert order_body["total_amount"] == 78.0
+    assert order_body["grand_total"] == 78.0
 
     webhook = client.post(
         f"{API}/webhooks/stripe",
@@ -86,7 +89,9 @@ def test_two_shoppers_cannot_see_each_others_orders(
     bob = sign_up("bob@codecrab.dev")
 
     order_id = client.post(
-        f"{API}/orders", headers=alice, json={"items": [{"product_id": product.id, "quantity": 1}]}
+        f"{API}/orders",
+        headers=alice,
+        json={"items": [{"product_id": product.id, "quantity": 1}], "shipping_address": "1 Crab Lane"},
     ).json()["id"]
 
     assert client.get(f"{API}/orders", headers=bob).json() == []
