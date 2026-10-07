@@ -27,12 +27,13 @@ class Order(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    shipping_address: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
         Enum(OrderStatus, values_callable=lambda e: [m.value for m in e], native_enum=False, length=20),
         default=OrderStatus.PENDING,
         index=True,
     )
-    total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
+    grand_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
     payment_intent_id: Mapped[str | None] = mapped_column(String(255), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

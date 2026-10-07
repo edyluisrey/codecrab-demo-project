@@ -6,6 +6,7 @@ from tests.conftest import AuthHeaders, ProductFactory, UserFactory
 pytestmark = pytest.mark.integration
 
 ORDERS = "/api/v1/orders"
+ADDRESS = "1 Crab Lane, Reef City"
 
 
 def test_orders_require_authentication(client: TestClient) -> None:
@@ -27,13 +28,16 @@ def test_create_order_returns_priced_order(
     response = client.post(
         ORDERS,
         headers=auth_headers(user),
-        json={"items": [{"product_id": trace.id, "quantity": 2}, {"product_id": crab.id, "quantity": 1}]},
+        json={
+            "items": [{"product_id": trace.id, "quantity": 2}, {"product_id": crab.id, "quantity": 1}],
+            "shipping_address": ADDRESS,
+        },
     )
 
     assert response.status_code == 201
     body = response.json()
     assert body["status"] == "pending"
-    assert body["total_amount"] == 197.0
+    assert body["grand_total"] == 197.0
     assert body["payment_intent_id"] is None
     assert [
         (i["product_name"], i["quantity"], i["unit_price"], i["line_total"]) for i in body["items"]
@@ -53,12 +57,13 @@ def test_create_order_ignores_client_supplied_prices(
         headers=auth_headers(make_user()),
         json={
             "items": [{"product_id": product.id, "quantity": 1, "unit_price": 0.01}],
-            "total_amount": 0.01,
+            "grand_total": 0.01,
+            "shipping_address": ADDRESS,
         },
     )
 
     assert response.status_code == 201
-    assert response.json()["total_amount"] == 50.0
+    assert response.json()["grand_total"] == 50.0
 
 
 def test_create_order_accepts_coupon_code_without_applying_it(
@@ -72,11 +77,15 @@ def test_create_order_accepts_coupon_code_without_applying_it(
     response = client.post(
         ORDERS,
         headers=auth_headers(make_user()),
-        json={"items": [{"product_id": product.id, "quantity": 1}], "coupon_code": "SAVE50"},
+        json={
+            "items": [{"product_id": product.id, "quantity": 1}],
+            "coupon_code": "SAVE50",
+            "shipping_address": ADDRESS,
+        },
     )
 
     assert response.status_code == 201
-    assert response.json()["total_amount"] == 20.0
+    assert response.json()["grand_total"] == 20.0
 
 
 @pytest.mark.parametrize(
@@ -101,7 +110,9 @@ def test_create_order_with_unknown_product_returns_404(
     client: TestClient, make_user: UserFactory, auth_headers: AuthHeaders
 ) -> None:
     response = client.post(
-        ORDERS, headers=auth_headers(make_user()), json={"items": [{"product_id": 42, "quantity": 1}]}
+        ORDERS,
+        headers=auth_headers(make_user()),
+        json={"items": [{"product_id": 42, "quantity": 1}], "shipping_address": ADDRESS},
     )
 
     assert response.status_code == 404
@@ -119,7 +130,7 @@ def test_create_order_with_insufficient_stock_returns_400(
     response = client.post(
         ORDERS,
         headers=auth_headers(make_user()),
-        json={"items": [{"product_id": product.id, "quantity": 2}]},
+        json={"items": [{"product_id": product.id, "quantity": 2}], "shipping_address": ADDRESS},
     )
 
     assert response.status_code == 400
@@ -134,7 +145,7 @@ def test_list_orders_returns_only_current_users_orders(
 ) -> None:
     alice, bob = make_user(), make_user()
     product = make_product()
-    item = {"items": [{"product_id": product.id, "quantity": 1}]}
+    item = {"items": [{"product_id": product.id, "quantity": 1}], "shipping_address": ADDRESS}
     alice_order = client.post(ORDERS, headers=auth_headers(alice), json=item).json()
     client.post(ORDERS, headers=auth_headers(bob), json=item)
 
@@ -153,7 +164,9 @@ def test_get_order_of_another_user_returns_404_not_403(
     alice, bob = make_user(), make_user()
     product = make_product()
     order = client.post(
-        ORDERS, headers=auth_headers(alice), json={"items": [{"product_id": product.id, "quantity": 1}]}
+        ORDERS,
+        headers=auth_headers(alice),
+        json={"items": [{"product_id": product.id, "quantity": 1}], "shipping_address": ADDRESS},
     ).json()
 
     own = client.get(f"{ORDERS}/{order['id']}", headers=auth_headers(alice))

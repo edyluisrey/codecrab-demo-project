@@ -13,6 +13,7 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1, max_length=50)
+    shipping_address: str = Field(min_length=1, max_length=255)
     # TODO(roadmap): coupon validation is not implemented; the code is accepted but ignored.
     coupon_code: str | None = Field(default=None, max_length=32)
 
@@ -41,7 +42,8 @@ class OrderRead(BaseModel):
 
     id: int
     status: OrderStatus
-    total_amount: Money
+    shipping_address: str
+    grand_total: Money
     payment_intent_id: str | None
     created_at: datetime
     updated_at: datetime

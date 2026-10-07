@@ -29,7 +29,9 @@ def create_order(db: Session, user: User, payload: OrderCreate) -> Order:
     if missing:
         raise NotFoundError(f"Products not found: {missing}", code="product_not_found")
 
-    order = Order(user_id=user.id, status=OrderStatus.PENDING)
+    order = Order(
+        user_id=user.id, shipping_address=payload.shipping_address, status=OrderStatus.PENDING
+    )
     total = Decimal("0.00")
 
     for line in payload.items:
@@ -47,11 +49,11 @@ def create_order(db: Session, user: User, payload: OrderCreate) -> Order:
 
     # TODO(roadmap): validate payload.coupon_code and apply the discount to the total.
 
-    order.total_amount = total.quantize(CENTS, rounding=ROUND_HALF_UP)
+    order.grand_total = total.quantize(CENTS, rounding=ROUND_HALF_UP)
     db.add(order)
     db.commit()
     db.refresh(order)
-    logger.info("Created order id=%s user_id=%s total=%s", order.id, user.id, order.total_amount)
+    logger.info("Created order id=%s user_id=%s total=%s", order.id, user.id, order.grand_total)
     return order
 
 

@@ -16,7 +16,10 @@ WEBHOOK = "/api/v1/webhooks/stripe"
 
 @pytest.fixture
 def order(db: Session, make_user: UserFactory, make_product: ProductFactory) -> Order:
-    payload = OrderCreate(items=[OrderItemCreate(product_id=make_product().id, quantity=1)])
+    payload = OrderCreate(
+        items=[OrderItemCreate(product_id=make_product().id, quantity=1)],
+        shipping_address="1 Crab Lane, Reef City",
+    )
     return order_service.create_order(db, make_user(), payload)
 
 
