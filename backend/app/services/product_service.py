@@ -3,8 +3,9 @@ from collections.abc import Sequence
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.models.product import Product
+from app.schemas.product import ProductCreate, ProductUpdate
 
 
 def list_products(
@@ -44,4 +45,25 @@ def get_product(db: Session, product_id: int) -> Product:
     product = db.get(Product, product_id)
     if product is None or not product.is_active:
         raise NotFoundError(f"Product {product_id} not found", code="product_not_found")
+    return product
+
+
+def create_product(db: Session, payload: ProductCreate) -> Product:
+    if db.scalar(select(Product.id).where(Product.sku == payload.sku)) is not None:
+        raise ConflictError(f"SKU '{payload.sku}' already exists", code="sku_taken")
+    product = Product(**payload.model_dump())
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
+def update_product(db: Session, product_id: int, payload: ProductUpdate) -> Product:
+    product = db.get(Product, product_id)
+    if product is None:
+        raise NotFoundError(f"Product {product_id} not found", code="product_not_found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(product, field, value)
+    db.commit()
+    db.refresh(product)
     return product
